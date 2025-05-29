@@ -1,0 +1,10 @@
+id: duckdb-box-upload
+namespace: dev
+
+tasks:
+  - id: run_python_script
+    type: io.kestra.plugin.scripts.python.Commands
+    commands:
+      - pip install duckdb boxsdk # Install necessary libraries
+      # - pip install geopandas # Uncomment if you want to save as GeoJSON
+      - python duckdb_extract.py
