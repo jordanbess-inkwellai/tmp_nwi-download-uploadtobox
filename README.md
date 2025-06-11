@@ -5,9 +5,12 @@ A production-ready Python application for extracting spatial data using DuckDB a
 ## Features
 
 - **Flexible Data Sources**: Support for various spatial data formats (GeoDatabase, Shapefile, GeoJSON, etc.)
+- **API Integration**: Download from REST APIs, WFS, OGC API Features using DuckDB HTTP client
+- **Cloud Storage Support**: Access data from S3, GCS, Azure, FTP via fsspec
 - **DuckDB-powered**: Fast spatial queries with bounding box filtering
 - **Multiple Export Formats**: GeoJSON, FileGDB, Shapefile, GeoPackage, CSV, Parquet
 - **Box.com Integration**: Automatic upload with metadata support
+- **Bounding Box Calculator**: Calculate bbox from polygon features (GeoJSON, GPKG, etc.)
 - **Configuration-driven**: JSON configuration files or command-line arguments
 - **Production-ready**: Comprehensive error handling, logging, and retry mechanisms
 - **Extensible**: Easy to add new data sources and locations
@@ -25,6 +28,30 @@ source venv/bin/activate  # On Windows: venv\Scripts\activate
 
 # Install dependencies
 pip install -r requirements.txt
+```
+
+## New Features
+
+### API Downloader Module
+Download spatial data from various APIs and cloud storage:
+- **DuckDB HTTP Client**: Native HTTP requests within DuckDB
+- **Fsspec Integration**: Support for S3, GCS, Azure, FTP, SSH, HDFS
+- **Spatial APIs**: Pre-configured support for ArcGIS REST, WFS, OGC API Features
+
+See [API Downloader Documentation](docs/API_DOWNLOADER_README.md) for details.
+
+### Bounding Box Calculator
+Calculate bounding boxes from polygon features:
+```bash
+# From GeoJSON
+python bbox_calculator.py input.geojson
+
+# From GeoPackage with filtering
+python bbox_calculator.py data.gpkg --layer buildings --where "height > 50"
+
+# With buffer and JSON output
+python bbox_calculator.py area.geojson --buffer 0.01 --output-format json
+```stall -r requirements.txt
 ```
 
 ## Configuration

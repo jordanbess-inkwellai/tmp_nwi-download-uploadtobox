@@ -5,13 +5,15 @@ import duckdb
 import geopandas as gpd
 import pandas as pd
 from shapely import wkb, wkt
-from typing import Optional, List, Dict, Any
+from typing import Optional, List, Dict, Any, Union
 import logging
 from pathlib import Path
 import tempfile
 import shutil
+from urllib.parse import urlparse
 
 from config import ExtractionConfig, BoundingBox, DataSource
+from api_downloader import APIDownloader
 
 
 logger = logging.getLogger(__name__)
@@ -39,13 +41,16 @@ class DuckDBSpatialExtractor:
             self.connection = duckdb.connect(database=':memory:', read_only=False)
             
             # Load required extensions
-            extensions = ['spatial', 'httpfs']
+            extensions = ['spatial', 'httpfs', 'http_client']
             if 'zip://' in self.config.data_source.url:
                 extensions.append('zipfs')
                 
             for ext in extensions:
-                self.connection.execute(f"INSTALL {ext};")
-                self.connection.execute(f"LOAD {ext};")
+                try:
+                    self.connection.execute(f"INSTALL {ext};")
+                    self.connection.execute(f"LOAD {ext};")
+                except Exception as e:
+                    logger.warning(f"Could not load extension {ext}: {e}")
                 
             logger.info("DuckDB connection established with extensions: %s", extensions)
             
@@ -86,22 +91,62 @@ class DuckDBSpatialExtractor:
         logger.debug("Built query: %s", query)
         return query
         
-    def extract_data(self) -> Optional[pd.DataFrame]:
+    def extract_data(self) -> Optional[Union[pd.DataFrame, gpd.GeoDataFrame]]:
         """Execute the extraction query and return results as DataFrame."""
         if not self.connection:
             raise RuntimeError("No active DuckDB connection")
             
         try:
-            query = self.build_query()
-            result = self.connection.execute(query)
-            df = result.fetchdf()
+            # Check if this is an API source
+            url = self.config.data_source.url
+            parsed = urlparse(url)
             
-            logger.info("Extracted %d rows from data source", len(df))
-            return df
+            # Handle API sources
+            if parsed.scheme in ['http', 'https'] and 'api' in url.lower():
+                return self._extract_from_api()
+            
+            # Handle fsspec-supported protocols
+            elif parsed.scheme in ['s3', 'gcs', 'azure', 'ftp', 'ssh', 'hdfs']:
+                return self._extract_from_fsspec()
+            
+            # Default DuckDB spatial extraction
+            else:
+                query = self.build_query()
+                result = self.connection.execute(query)
+                df = result.fetchdf()
+                
+                logger.info("Extracted %d rows from data source", len(df))
+                return df
             
         except Exception as e:
             logger.error("Failed to extract data: %s", e)
             raise
+            
+    def _extract_from_api(self) -> gpd.GeoDataFrame:
+        """Extract data from API sources."""
+        with APIDownloader() as downloader:
+            # Parse API configuration from URL or metadata
+            api_config = {
+                'url': self.config.data_source.url,
+                'type': self.config.metadata.get('api_type', 'generic'),
+                'params': self.config.metadata.get('api_params', {}),
+                'headers': self.config.metadata.get('api_headers', {})
+            }
+            
+            # Add layer name if specified
+            if self.config.data_source.layer_name:
+                api_config['layer_name'] = self.config.data_source.layer_name
+                
+            return downloader.download_spatial_api(api_config, self.config.bounding_box)
+            
+    def _extract_from_fsspec(self) -> Union[pd.DataFrame, gpd.GeoDataFrame]:
+        """Extract data from fsspec-supported file systems."""
+        with APIDownloader() as downloader:
+            storage_options = self.config.metadata.get('storage_options', {})
+            return downloader.download_with_fsspec(
+                self.config.data_source.url,
+                storage_options=storage_options
+            )
             
     def to_geodataframe(self, df: pd.DataFrame) -> Optional[gpd.GeoDataFrame]:
         """Convert DataFrame to GeoDataFrame."""
