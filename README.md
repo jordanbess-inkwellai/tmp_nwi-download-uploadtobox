@@ -1,5 +1,5 @@
 # DuckDB Spatial Data Extractor with Box Upload
-
+this code has been migrated to https://github.com/aiinkwell/ecco-geospatialdata_integration_review_analysis-services_fastapi/tree/main/app/services/vector_geospatial_data_downloader
 A production-ready Python application for extracting spatial data using DuckDB and uploading results to Box.com with metadata support.
 
 ## Features
