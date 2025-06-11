@@ -1,10 +1,78 @@
-id: duckdb-box-upload
-namespace: dev
+id: duckdb-spatial-extraction
+namespace: production
+
+description: Extract spatial data using DuckDB and upload to Box.com
+
+inputs:
+  - name: config_file
+    type: STRING
+    defaults: example_config.json
+    description: Path to configuration JSON file
+    
+  - name: upload_to_box
+    type: BOOLEAN
+    defaults: true
+    description: Whether to upload results to Box
+    
+  - name: log_level
+    type: STRING
+    defaults: INFO
+    description: Logging level (DEBUG, INFO, WARNING, ERROR)
 
 tasks:
-  - id: run_python_script
+  - id: setup_environment
+    type: io.kestra.plugin.scripts.shell.Commands
+    commands:
+      - echo "Setting up Python environment..."
+      - python -m venv venv || true
+      - source venv/bin/activate || venv\\Scripts\\activate
+      
+  - id: install_dependencies
     type: io.kestra.plugin.scripts.python.Commands
     commands:
-      - pip install duckdb boxsdk # Install necessary libraries
-      # - pip install geopandas # Uncomment if you want to save as GeoJSON
-      - python duckdb_extract.py
+      - pip install --upgrade pip
+      - pip install -r requirements.txt
+      
+  - id: extract_and_upload
+    type: io.kestra.plugin.scripts.python.Commands
+    env:
+      BOX_CLIENT_ID: "{{ secret('BOX_CLIENT_ID') }}"
+      BOX_CLIENT_SECRET: "{{ secret('BOX_CLIENT_SECRET') }}"
+      BOX_ACCESS_TOKEN: "{{ secret('BOX_ACCESS_TOKEN') }}"
+      BOX_FOLDER_ID: "{{ secret('BOX_FOLDER_ID') }}"
+      BOX_METADATA_TEMPLATE_KEY: "{{ secret('BOX_METADATA_TEMPLATE_KEY') }}"
+    commands:
+      - |
+        python main.py \
+          --config {{ inputs.config_file }} \
+          --log-level {{ inputs.log_level }} \
+          {% if inputs.upload_to_box %}--upload-to-box{% endif %}
+          
+  - id: cleanup
+    type: io.kestra.plugin.scripts.shell.Commands
+    commands:
+      - echo "Cleaning up temporary files..."
+      - rm -rf output/*.gdb || true
+      - rm -f *.log || true
+    allowFailure: true
+
+outputs:
+  - name: extraction_log
+    type: STRING
+    value: "{{ read('extraction_*.log') }}"
+    
+triggers:
+  - id: daily_extraction
+    type: io.kestra.core.models.triggers.types.Schedule
+    cron: "0 2 * * *"  # Run at 2 AM daily
+    
+errors:
+  - id: notify_on_failure
+    type: io.kestra.plugin.notifications.slack.SlackMessage
+    url: "{{ secret('SLACK_WEBHOOK_URL') }}"
+    message: |
+      Spatial data extraction failed!
+      Namespace: {{ flow.namespace }}
+      Flow: {{ flow.id }}
+      Execution: {{ execution.id }}
+      Error: {{ error.message }}

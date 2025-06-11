@@ -1,0 +1,8 @@
+duckdb>=0.9.0
+geopandas>=0.14.0
+shapely>=2.0.0
+pandas>=2.0.0
+boxsdk>=3.0.0
+pyarrow>=14.0.0  # For parquet support
+fiona>=1.9.0  # For various geospatial formats
+gdal>=3.0.0  # Optional, for FileGDB support

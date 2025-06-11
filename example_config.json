@@ -1,0 +1,18 @@
+{
+  "job_name": "disney_wetlands_extraction",
+  "data_source": "fws_wetlands_fl",
+  "bounding_box": {
+    "min_lon": -81.61303476507055,
+    "min_lat": 28.34441345722594,
+    "max_lon": -81.56830935354668,
+    "max_lat": 28.3768179430727
+  },
+  "output_formats": ["geojson", "filegdb", "gpkg"],
+  "output_prefix": "animal_kingdom_wetlands",
+  "metadata": {
+    "project_name": "Disney Animal Kingdom Wetlands Analysis",
+    "data_source": "US Fish and Wildlife Service",
+    "location": "Disney Animal Kingdom, Florida",
+    "purpose": "Environmental assessment"
+  }
+}

@@ -1,0 +1,37 @@
+version: '3.8'
+
+services:
+  extractor:
+    build: .
+    environment:
+      - BOX_CLIENT_ID=${BOX_CLIENT_ID}
+      - BOX_CLIENT_SECRET=${BOX_CLIENT_SECRET}
+      - BOX_ACCESS_TOKEN=${BOX_ACCESS_TOKEN}
+      - BOX_FOLDER_ID=${BOX_FOLDER_ID}
+      - BOX_METADATA_TEMPLATE_KEY=${BOX_METADATA_TEMPLATE_KEY}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    volumes:
+      - ./output:/app/output
+      - ./configs:/app/configs:ro
+    command: >
+      python main.py
+      --config /app/configs/example_config.json
+      --output-dir /app/output
+      --upload-to-box
+      
+  # Development service with mounted source code
+  dev:
+    build: .
+    environment:
+      - BOX_CLIENT_ID=${BOX_CLIENT_ID}
+      - BOX_CLIENT_SECRET=${BOX_CLIENT_SECRET}
+      - BOX_ACCESS_TOKEN=${BOX_ACCESS_TOKEN}
+      - BOX_FOLDER_ID=${BOX_FOLDER_ID}
+      - BOX_METADATA_TEMPLATE_KEY=${BOX_METADATA_TEMPLATE_KEY}
+      - LOG_LEVEL=DEBUG
+    volumes:
+      - .:/app
+      - ./output:/app/output
+    command: /bin/bash
+    stdin_open: true
+    tty: true
